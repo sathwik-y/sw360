@@ -34,7 +34,9 @@ env:
   REGISTRY: ghcr.io
 
 permissions:
-  contents: read
+  contents: write
+  packages: write
+  actions: read
 
 jobs:
   sw360_version:
@@ -51,10 +53,10 @@ jobs:
       - name: Checkout main repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
-          java-version: "17"
+          java-version: "21"
           cache: "maven"
           distribution: "temurin"
 
@@ -67,6 +69,7 @@ jobs:
     name: Build SW360 Thrift image
     runs-on: ubuntu-24.04
     permissions:
+      contents: write
       packages: write
 
     steps:
@@ -82,7 +85,7 @@ jobs:
           cat .versions >> $GITHUB_ENV
 
       - name: Build thrift image
-        uses: heliocastro/docker-build-control@944a0451eadb63cf4f45a8ca66dba07118740faf # v5.1
+        uses: heliocastro/docker-build-control@b92a8614ab7db16f002b8e347a99ab9c9aa07d16 # v6.1
         with:
           name: thrift
           target: localthrift
@@ -90,6 +93,7 @@ jobs:
           version: ${{ env.THRIFT_VERSION }}
           invalidate-cache: ${{ inputs.invalidate-cache }}
           debug: ${{ inputs.debug }}
+          platforms: "linux/amd64,linux/arm64"
           build-args: |
             THRIFT_VERSION=${{ env.THRIFT_VERSION }}
 
@@ -98,6 +102,7 @@ jobs:
     needs: [sw360_version, thrift_image]
     runs-on: ubuntu-24.04
     permissions:
+      contents: write
       packages: write
 
     steps:
@@ -114,13 +119,14 @@ jobs:
           cat .versions >> $GITHUB_ENV
 
       - name: Build binary image
-        uses: heliocastro/docker-build-control@944a0451eadb63cf4f45a8ca66dba07118740faf # v5.1
+        uses: heliocastro/docker-build-control@b92a8614ab7db16f002b8e347a99ab9c9aa07d16 # v6.1
         with:
           name: binaries
           version: ${{ env.SW360_VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
           invalidate-cache: ${{ inputs.invalidate-cache }}
           debug: ${{ inputs.debug }}
+          platforms: "linux/amd64,linux/arm64"
           build-args: |
             THRIFT_VERSION=${{ env.THRIFT_VERSION }}
             SW360_VERSION=${{ env.SHORT_SHA }}
@@ -134,6 +140,7 @@ jobs:
     needs: [sw360_version, binary_image]
     runs-on: ubuntu-24.04
     permissions:
+      contents: write
       packages: write
 
     steps:
@@ -150,7 +157,7 @@ jobs:
           cat .versions >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -181,6 +188,7 @@ jobs:
           tags: ${{ steps.meta_runtime.outputs.tags }}
           labels: ${{ steps.meta_runtime.outputs.labels }}
           provenance: mode=max
+          platforms: "linux/amd64,linux/arm64"
           sbom: true
           build-contexts: |
             binaries=docker-image://${{ env.REGISTRY }}/${{ github.repository }}/binaries:${{ env.SW360_VERSION }}
