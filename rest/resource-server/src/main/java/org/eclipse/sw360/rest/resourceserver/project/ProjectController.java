@@ -81,7 +81,6 @@ import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.ObligationList;
 import org.eclipse.sw360.datahandler.thrift.projects.ObligationStatusInfo;
-import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectLink;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectProjectRelationship;
@@ -3661,59 +3660,57 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
      * @return Filter predicate for stream.
      */
     private static @NonNull Predicate<Project> filterProjectMap(Map<String, Set<String>> restrictions) {
-        return project -> {
-            for (Map.Entry<String, Set<String>> restriction : restrictions.entrySet()) {
-                final Set<String> filterSet = restriction.getValue();
-                Project._Fields field = Project._Fields.findByName(restriction.getKey());
-                Object fieldValue = project.getFieldValue(field);
-                if (fieldValue == null) {
+    return project -> {
+        for (Map.Entry<String, Set<String>> restriction : restrictions.entrySet()) {
+            final Set<String> filterSet = restriction.getValue();
+            Project._Fields field = Project._Fields.findByName(restriction.getKey());
+            Object fieldValue = project.getFieldValue(field);
+            if (fieldValue == null) {
+                return false;
+            }
+            if (field == Project._Fields.PROJECT_TYPE && !filterSet.contains(project.projectType.name())) {
+                return false;
+            } else if (field == Project._Fields.VERSION && !filterSet.contains(project.version)) {
+                return false;
+            } else if (field == Project._Fields.PROJECT_RESPONSIBLE && !filterSet.contains(project.projectResponsible)) {
+                return false;
+            } else if (field == Project._Fields.STATE && !filterSet.contains(project.state.name())) {
+                return false;
+            } else if (field == Project._Fields.CLEARING_STATE && !filterSet.contains(project.clearingState.name())) {
+                return false;
+            } else if ((field == Project._Fields.CREATED_BY || field == Project._Fields.CREATED_ON)
+                    && !fieldValue.toString().equalsIgnoreCase(filterSet.iterator().next())) {
+                return false;
+            } else if (fieldValue instanceof Set) {
+                if (Sets.intersection(filterSet, (Set<String>) fieldValue).isEmpty()) {
                     return false;
                 }
-                if (field == Project._Fields.PROJECT_TYPE && !filterSet.contains(project.projectType.name())) {
-                    return false;
-                } else if (field == Project._Fields.VERSION && !filterSet.contains(project.version)) {
-                    return false;
-                } else if (field == Project._Fields.PROJECT_RESPONSIBLE && !filterSet.contains(project.projectResponsible)) {
-                    return false;
-                } else if (field == Project._Fields.STATE && !filterSet.contains(project.state.name())) {
-                    return false;
-                } else if (field == Project._Fields.CLEARING_STATE && !filterSet.contains(project.clearingState.name())) {
-                    return false;
-                } else if ((field == Project._Fields.CREATED_BY || field == Project._Fields.CREATED_ON)
-                        && !fieldValue.toString().equalsIgnoreCase(filterSet.iterator().next())) {
-                    return false;
-                } else if (fieldValue instanceof Set) {
-                    if (Sets.intersection(filterSet, (Set<String>) fieldValue).isEmpty()) {
+            } else if (fieldValue instanceof Map<?,?>) {
+                Map<?, ?> fieldValueMap = (Map<?, ?>) fieldValue;
+                
+                // Special handling for additionalData: ONLY search in values
+                if (field == Project._Fields.ADDITIONAL_DATA) {
+                    boolean matchesValue = fieldValueMap.values().stream()
+                            .anyMatch(filterSet::contains);
+                    
+                    // If it doesn't match any values, return false
+                    if (!matchesValue) {
                         return false;
                     }
-                } else if (fieldValue instanceof Map<?,?>) {
-                    Map<?, ?> fieldValueMap = (Map<?, ?>) fieldValue;
-                    
-                    // Special handling for additionalData field
-                    if (field == Project._Fields.ADDITIONAL_DATA) {
-                        // Check both keys AND values for additionalData
-                        boolean matchesKey = fieldValueMap.keySet().stream()
-                                .anyMatch(filterSet::contains);
-                        boolean matchesValue = fieldValueMap.values().stream()
-                                .anyMatch(filterSet::contains);
-                        
-                        // If it doesn't match either keys or values, return false
-                        if (!matchesKey && !matchesValue) {
-                            return false;
-                        }
-                    } else {
-                        // For other Map fields, keep the original behavior (check keys only)
-                        boolean hasIntersection = fieldValueMap.keySet().stream()
-                                .anyMatch(filterSet::contains);
-                        if (!hasIntersection) {
-                            return false;
-                        }
+                } else {
+                    // For other Map fields, keep the original behavior (check keys only)
+                    boolean hasIntersection = fieldValueMap.keySet().stream()
+                            .anyMatch(filterSet::contains);
+                    if (!hasIntersection) {
+                        return false;
                     }
                 }
             }
-            return true;
-        };
-    }
+        }
+        return true;
+    };
+}
+
 
     @Operation(
             summary = "Add licenses to linked releases of a project.",
