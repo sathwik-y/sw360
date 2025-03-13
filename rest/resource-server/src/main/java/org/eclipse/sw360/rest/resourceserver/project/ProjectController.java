@@ -313,35 +313,43 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
                 mapOfProjects, isSearchByName, sw360Projects, isNoFilter);
     }
 
-    private Map<String, Set<String>> getFilterMap(String tag, String projectType, String group, String version, String projectResponsible,
-                                                  ProjectState projectState, ProjectClearingState projectClearingState, String additionalData) {
-        Map<String, Set<String>> filterMap = new HashMap<>();
-        if (CommonUtils.isNotNullEmptyOrWhitespace(tag)) {
-            filterMap.put(Project._Fields.TAG.getFieldName(), CommonUtils.splitToSet(tag));
-        }
-        if (CommonUtils.isNotNullEmptyOrWhitespace(projectType)) {
-            filterMap.put(Project._Fields.PROJECT_TYPE.getFieldName(), CommonUtils.splitToSet(projectType));
-        }
-        if (CommonUtils.isNotNullEmptyOrWhitespace(group)) {
-            filterMap.put(Project._Fields.BUSINESS_UNIT.getFieldName(), CommonUtils.splitToSet(group));
-        }
-        if (CommonUtils.isNotNullEmptyOrWhitespace(version)) {
-            filterMap.put(Project._Fields.VERSION.getFieldName(), CommonUtils.splitToSet(version));
-        }
-        if (CommonUtils.isNotNullEmptyOrWhitespace(projectResponsible)) {
-            filterMap.put(Project._Fields.PROJECT_RESPONSIBLE.getFieldName(), CommonUtils.splitToSet(projectResponsible));
-        }
-        if (projectState!=null && CommonUtils.isNotNullEmptyOrWhitespace(projectState.name())) {
-            filterMap.put(Project._Fields.STATE.getFieldName(), CommonUtils.splitToSet(projectState.name()));
-        }
-        if (projectClearingState!=null && CommonUtils.isNotNullEmptyOrWhitespace(projectClearingState.name())) {
-            filterMap.put(Project._Fields.CLEARING_STATE.getFieldName(), CommonUtils.splitToSet(projectClearingState.name()));
-        }
-        if (CommonUtils.isNotNullEmptyOrWhitespace(additionalData)) {
-            filterMap.put(Project._Fields.ADDITIONAL_DATA.getFieldName(), CommonUtils.splitToSet(additionalData));
-        }
-        return filterMap;
-    }
+    private Map<String, Set<String>> getFilterMap(String tag, String projectType, String group, 
+                                                String version, String projectResponsible, 
+                                                ProjectState projectState, 
+                                                ProjectClearingState projectClearingState, 
+                                                String additionalData) {
+      Map<String, Set<String>> filterMap = new HashMap<>();
+  
+      if (CommonUtils.isNotNullEmptyOrWhitespace(tag)) {
+          filterMap.put(Project._Fields.TAG.getFieldName(), CommonUtils.splitToSet(tag));
+      }
+      if (CommonUtils.isNotNullEmptyOrWhitespace(projectType)) {
+          filterMap.put(Project._Fields.PROJECT_TYPE.getFieldName(), CommonUtils.splitToSet(projectType));
+      }
+      if (CommonUtils.isNotNullEmptyOrWhitespace(group)) {
+          filterMap.put(Project._Fields.BUSINESS_UNIT.getFieldName(), CommonUtils.splitToSet(group));
+      }
+      if (CommonUtils.isNotNullEmptyOrWhitespace(version)) {
+          filterMap.put(Project._Fields.VERSION.getFieldName(), CommonUtils.splitToSet(version));
+      }
+      if (CommonUtils.isNotNullEmptyOrWhitespace(projectResponsible)) {
+          filterMap.put(Project._Fields.PROJECT_RESPONSIBLE.getFieldName(), CommonUtils.splitToSet(projectResponsible));
+      }
+      if (projectState != null && CommonUtils.isNotNullEmptyOrWhitespace(projectState.name())) {
+          filterMap.put(Project._Fields.STATE.getFieldName(), CommonUtils.splitToSet(projectState.name()));
+      }
+      if (projectClearingState != null && CommonUtils.isNotNullEmptyOrWhitespace(projectClearingState.name())) {
+          filterMap.put(Project._Fields.CLEARING_STATE.getFieldName(), CommonUtils.splitToSet(projectClearingState.name()));
+      }
+      
+      // Ensure additionalData search works for both keys & values
+      if (CommonUtils.isNotNullEmptyOrWhitespace(additionalData)) {
+          filterMap.put(Project._Fields.ADDITIONAL_DATA.getFieldName(), CommonUtils.splitToSet(additionalData));
+      }
+  
+      return filterMap;
+  }
+  
 
     @NotNull
     private ResponseEntity<CollectionModel<EntityModel<Project>>> getProjectResponse(Pageable pageable,
@@ -3678,10 +3686,26 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
                     }
                 } else if (fieldValue instanceof Map<?,?>) {
                     Map<?, ?> fieldValueMap = (Map<?, ?>) fieldValue;
-                    boolean hasIntersection = fieldValueMap.keySet().stream()
-                            .anyMatch(filterSet::contains);
-                    if (!hasIntersection) {
-                        return false;
+                    
+                    // Special handling for additionalData field
+                    if (field == Project._Fields.ADDITIONAL_DATA) {
+                        // Check both keys AND values for additionalData
+                        boolean matchesKey = fieldValueMap.keySet().stream()
+                                .anyMatch(filterSet::contains);
+                        boolean matchesValue = fieldValueMap.values().stream()
+                                .anyMatch(filterSet::contains);
+                        
+                        // If it doesn't match either keys or values, return false
+                        if (!matchesKey && !matchesValue) {
+                            return false;
+                        }
+                    } else {
+                        // For other Map fields, keep the original behavior (check keys only)
+                        boolean hasIntersection = fieldValueMap.keySet().stream()
+                                .anyMatch(filterSet::contains);
+                        if (!hasIntersection) {
+                            return false;
+                        }
                     }
                 }
             }
