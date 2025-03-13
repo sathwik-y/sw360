@@ -3364,7 +3364,6 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         List<ReleaseNode> releaseNodes = null;
         String dependencyNetwork = objectMapper.writeValueAsString(requestBody.get("dependencyNetwork"));
-
         List<ReleaseNode> uniqueDependencyNetwork = new ArrayList<>();
 
         if (dependencyNetwork != null && !dependencyNetwork.equals("null")) {
