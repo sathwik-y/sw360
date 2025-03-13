@@ -3759,7 +3759,6 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     ) throws TException, ResourceClassNotFoundException {
         try {
             User sw360User = restControllerHelper.getSw360UserFromAuthentication();
-
             RequestStatus requestStatus = projectService.addLicenseToLinkedReleases(projectId, sw360User);
 
             if (requestStatus == RequestStatus.SUCCESS) {
